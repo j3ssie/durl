@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/valyala/fastjson"
 )
 
 // Strip out similar URLs by unique hostname-path-paramName and some other noise pattern
@@ -21,8 +23,11 @@ var (
 	excludeStatic bool
 	excludeNoise  bool
 	haveParam     bool
+	handleJson    bool
 	limit         int
 	ext           string
+	targetScope   string
+	jsonField     string
 )
 
 func main() {
@@ -32,7 +37,14 @@ func main() {
 	flag.BoolVar(&haveParam, "p", false, "Enable check if input have parameter")
 	flag.IntVar(&limit, "l", 100, "Limit length of path item (default 100)")
 	flag.StringVar(&ext, "e", "", "Blacklist regex string")
+	flag.StringVar(&targetScope, "t", "", "Target scope")
+	flag.StringVar(&jsonField, "f", "", "Field to select in JSON data (only apply for JSON input)")
+
 	flag.Parse()
+	var p fastjson.Parser
+	if jsonField != "" {
+		handleJson = true
+	}
 
 	data := make(map[string]string)
 	hostMapping := make(map[string]string)
@@ -41,6 +53,19 @@ func main() {
 		raw := strings.TrimSpace(sc.Text())
 		if sc.Err() != nil && raw == "" {
 			continue
+		}
+
+		var original string
+
+		// handle json
+		// check if the input is JSON or not
+		if jsonField != "" {
+			v, err := p.Parse(raw)
+			if err != nil {
+				continue
+			}
+			original = raw
+			raw = string(v.GetStringBytes(jsonField))
 		}
 
 		if excludeStatic {
@@ -53,6 +78,13 @@ func main() {
 		u, err := url.Parse(raw)
 		if err != nil || u.Hostname() == "" {
 			continue
+		}
+
+		// check if the url host is in scope or not
+		if targetScope != "" {
+			if !strings.Contains(u.Hostname(), targetScope) {
+				continue
+			}
 		}
 
 		hash := hashUrl(u)
@@ -79,8 +111,13 @@ func main() {
 				}
 			}
 
-			data[hash] = raw
-			fmt.Println(data[hash])
+			if handleJson {
+				data[hash] = original
+				fmt.Println(original)
+			} else {
+				data[hash] = raw
+				fmt.Println(data[hash])
+			}
 
 		}
 	}
