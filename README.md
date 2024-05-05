@@ -21,7 +21,7 @@ cat wayback_urls.txt | durl -e 'your-regex-here' | tee differ-urls.txt
 cat spider-urls.txt | durl -t 'target.com' | tee in-scope-url.txt
 
 # parse JSONL data
-cat large-jsonl-data.txt | durl -t 'target.com' -k url | tee in-scope-jsonl-data.txt
+cat large-jsonl-data.txt | durl -t 'target.com' -f url | tee in-scope-jsonl-data.txt
 ```
 
 ## Covered cases
